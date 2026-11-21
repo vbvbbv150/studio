@@ -1,0 +1,12 @@
+{
+  "name": "studio-local-mvp",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node server.js",
+    "build": "node scripts/build.mjs",
+    "preview": "node server.js dist",
+    "test": "node --test"
+  }
+}

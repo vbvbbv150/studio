@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#10131a" />
+  <meta name="description" content="Studio — build, inspect, and edit real application source." />
+  <title>Studio — Visual App Builder</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/src/style.css" />
+</head>
+<body>
+  <div id="app" class="app-shell">
+    <aside class="sidebar" id="sidebar">
+      <a class="brand" href="#home" aria-label="Studio home"><span class="brand-mark">S</span><span>studio</span><span class="brand-beta">LOCAL</span></a>
+      <div class="workspace-label">WORKSPACE</div>
+      <button class="nav-item active" data-view="home"><span>▦</span> Overview</button>
+      <button class="nav-item" data-view="projects"><span>◫</span> Projects</button>
+      <button class="nav-item" data-view="templates"><span>◇</span> Templates</button>
+      <div class="sidebar-bottom">
+        <div class="storage-card"><span class="status-dot"></span><div><b>Local workspace</b><small>Your projects stay in this browser</small></div></div>
+        <button class="nav-item" data-action="settings"><span>⚙</span> Settings & providers</button>
+        <div class="user-chip"><div class="avatar">O</div><div><b>My workspace</b><small>Personal</small></div><span class="more">···</span></div>
+      </div>
+    </aside>
+
+    <main class="main-area">
+      <header class="topbar"><button class="icon-btn mobile-menu" id="mobileMenu" aria-label="Open navigation">☰</button><div class="breadcrumbs"><span>Workspace</span><i>/</i><b id="breadcrumbCurrent">Overview</b></div><div class="top-actions"><span class="connection"><span class="status-dot"></span> Local mode</span><button class="icon-btn" id="themeToggle" aria-label="Toggle theme">◐</button><button class="primary-btn small" data-action="new-project">＋ New project</button></div></header>
+      <section class="view active" id="view-home">
+        <div class="welcome-row"><div><div class="eyebrow">YOUR CREATIVE WORKSPACE</div><h1>Build something<br/><span class="muted-heading">remarkable.</span></h1><p class="lead">A focused space to create, inspect, and shape real application source.</p></div><div class="welcome-orb"><div class="orb-inner">S<span>✳</span></div></div></div>
+        <div class="quick-grid"><button class="quick-card" data-action="new-project"><span class="quick-icon violet">＋</span><b>Start from scratch</b><small>Create a clean project with editable source files.</small><span class="card-arrow">↗</span></button><button class="quick-card" data-view="templates"><span class="quick-icon amber">◇</span><b>Explore templates</b><small>Start with a functional starter experience.</small><span class="card-arrow">↗</span></button><button class="quick-card" data-action="import-project"><span class="quick-icon blue">⇧</span><b>Import a project</b><small>Bring in a Studio JSON project bundle.</small><span class="card-arrow">↗</span></button></div>
+        <div class="section-heading"><div><div class="eyebrow">CONTINUE BUILDING</div><h2>Recent projects</h2></div><button class="text-btn" data-view="projects">View all projects ↗</button></div>
+        <div class="project-grid" id="recentProjects"></div>
+        <div class="notice-strip"><span class="notice-icon">✦</span><div><b>Real source. Real preview.</b><p>Edits in the workspace update the running iframe preview from your project's HTML, CSS, and JavaScript files.</p></div><span class="notice-tag">CORE WORKFLOW</span></div>
+      </section>
+
+      <section class="view" id="view-projects"><div class="page-heading"><div><div class="eyebrow">YOUR WORK</div><h1>Projects</h1><p class="lead">Your locally saved workspaces.</p></div><button class="primary-btn" data-action="new-project">＋ New project</button></div><div class="toolbar"><input id="projectSearch" class="search-input" placeholder="⌕  Search projects..."/><span class="muted" id="projectCount"></span></div><div class="project-grid" id="allProjects"></div></section>
+
+      <section class="view" id="view-templates"><div class="page-heading"><div><div class="eyebrow">A QUICKER START</div><h1>Templates</h1><p class="lead">Small, editable starting points. Every template contains real source files.</p></div></div><div class="template-grid" id="templateGrid"></div></section>
+
+      <section class="view" id="view-editor">
+        <div class="editor-topline"><div><button class="back-link" data-action="back-home">← Workspace</button><h2 id="editorProjectName">Untitled project</h2><span class="save-state" id="saveState">● Saved locally</span></div><div class="editor-actions"><button class="secondary-btn" data-action="export-project">⇩ Export</button><button class="secondary-btn" data-action="open-ai">✧ Ask AI</button><button class="primary-btn small" data-action="refresh-preview">↻ Run preview</button></div></div>
+        <div class="editor-layout">
+          <section class="panel files-panel"><div class="panel-head"><b>EXPLORER</b><button class="mini-icon" data-action="new-file" title="New file">＋</button></div><div id="fileTree" class="file-tree"></div><div class="panel-foot">LOCAL PROJECT FILES</div></section>
+          <section class="panel code-panel"><div class="panel-head"><div class="tab-label" id="activeFileLabel">index.html</div><div class="code-tools"><span id="languageLabel">HTML</span><button class="mini-icon" data-action="save-file" title="Save file">✓</button></div></div><textarea id="codeEditor" class="code-editor" spellcheck="false" aria-label="Source code editor"></textarea><div class="editor-status"><span id="cursorStatus">Ln 1, Col 1</span><span>UTF-8</span><span id="fileStatus">Saved</span></div></section>
+          <section class="panel preview-panel"><div class="panel-head"><div><b>LIVE PREVIEW</b><span class="preview-live"><i></i> SOURCE CONNECTED</span></div><div class="preview-tools"><button class="mini-icon" data-action="inspect-toggle" title="Toggle element selection">⌖</button><button class="mini-icon" data-action="refresh-preview" title="Refresh preview">↻</button></div></div><div class="preview-frame-wrap"><iframe id="livePreview" title="Live application preview" sandbox="allow-scripts allow-forms allow-modals" referrerpolicy="no-referrer"></iframe></div><div class="preview-footer"><span id="previewMessage">Preview reflects saved source</span><span>Responsive canvas</span></div></section>
+          <section class="panel inspector-panel"><div class="panel-head"><b>INSPECTOR</b><span class="inspector-state" id="inspectState">IDLE</span></div><div id="inspectorContent" class="inspector-content"><div class="inspector-empty"><span>⌖</span><b>Select an element</b><p>Enable selection in the preview, then choose an element to inspect its text and styles.</p></div></div></section>
+        </div>
+        <div class="console-bar"><div class="console-title">⌁ OUTPUT</div><div class="console-content" id="consoleOutput">Studio workspace ready. Select a file to edit its source.</div><button class="mini-icon" data-action="clear-console">×</button></div>
+      </section>
+
+      <section class="view" id="view-settings"><div class="page-heading"><div><div class="eyebrow">PREFERENCES</div><h1>Settings & providers</h1><p class="lead">Configure the local workspace and optional AI connection.</p></div></div><div class="settings-card"><div class="settings-heading"><div><b>AI provider connection</b><p>Optional. Studio does not include a paid AI service or provide free model credits.</p></div><span class="pill">OPTIONAL</span></div><label>Provider<select id="aiProvider"><option value="openai">OpenAI-compatible API</option><option value="anthropic">Anthropic API</option></select></label><label>API endpoint<input id="aiEndpoint" placeholder="https://api.openai.com/v1" /></label><label>Model<input id="aiModel" placeholder="Enter a model ID" /></label><label>API key<input id="aiKey" type="password" placeholder="Entered key is kept in memory only" autocomplete="off" /></label><div class="settings-actions"><button class="secondary-btn" data-action="clear-ai">Clear credentials</button><button class="primary-btn" data-action="save-ai">Use this connection</button></div><p class="settings-warning">Security note: this browser-only MVP sends requests directly from your browser to the provider. Do not use this setup for shared/public deployments. A production version needs a protected server-side secrets vault and authorization layer.</p></div><div class="settings-card"><div class="settings-heading"><div><b>Workspace data</b><p>Projects are stored in this browser using IndexedDB.</p></div></div><div class="settings-actions"><button class="secondary-btn" data-action="export-all">Export all projects</button><button class="danger-btn" data-action="clear-workspace">Delete all local projects</button></div></div></section>
+      </section>
+    </main>
+  </div>
+  <div class="modal-backdrop" id="modalBackdrop" hidden><div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle"><div class="modal-head"><div><div class="eyebrow">STUDIO WORKSPACE</div><h2 id="modalTitle">Create project</h2></div><button class="icon-btn" data-action="close-modal">×</button></div><div id="modalBody"></div></div></div>
+  <input id="importInput" type="file" accept="application/json,.studio.json" hidden />
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
