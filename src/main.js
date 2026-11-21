@@ -1,114 +1,67 @@
-import './style.css';
+import { templates } from './templates.js';
 
-const state = { view: 'projects', drafts: [], modal: false };
-const app = document.querySelector('#app');
+const $ = (s, root=document) => root.querySelector(s);
+const $$ = (s, root=document) => [...root.querySelectorAll(s)];
+const uid = () => crypto.randomUUID ? crypto.randomUUID() : `p-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+const clone = value => JSON.parse(JSON.stringify(value));
+const state = { projects: [], currentId: null, activeFile: 'index.html', selected: null, inspect: false, history: [], historyIndex: -1, ai: null, theme: 'dark' };
+let persistTimer = null;
 
-function safe(s) {
-  return String(s).replace(/[&<>"']/g, c => ({
-    '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'
-  }[c]));
-}
-function toast(message) {
-  const el = document.querySelector('#toast');
-  if (!el) return;
-  el.textContent = message;
-  el.classList.add('show');
-  clearTimeout(window.toastTimer);
-  window.toastTimer = setTimeout(() => el.classList.remove('show'), 2600);
-}
-function modal() {
-  return `<div class="backdrop" id="backdrop"><section class="modal">
-    <button class="close" id="close">×</button>
-    <label>NEW PROJECT</label><h2>Start with a clear idea.</h2>
-    <p>Give your project a name. GitHub connection will be added in a later milestone.</p>
-    <form id="project-form">
-      <label for="name">Project name</label><input id="name" maxlength="48" placeholder="My awesome app" required />
-      <label for="description">What are you building? <small>Optional</small></label>
-      <textarea id="description" rows="3" placeholder="A short description..."></textarea>
-      <button class="primary full">Create local draft ↗</button>
-    </form>
-    <small class="footnote">This creates a local draft only. No repository or cloud workspace is created yet.</small>
-  </section></div>`;
-}
-function render() {
-  const cards = state.drafts.map(p => `<article class="project-card">
-    <div class="card-top"><span class="project-icon">&lt;/&gt;</span><span class="draft-tag">LOCAL DRAFT</span></div>
-    <h3>${safe(p.name)}</h3><p>${safe(p.description || 'Blank project')}</p>
-    <small>Not connected to GitHub</small></article>`).join('');
-  let page = '';
-  if (state.view === 'projects') {
-    page = `<div class="heading"><div><label>YOUR WORKSPACE</label>
-      <h1>Build something <em>remarkable.</em></h1>
-      <p>Your projects, ideas, and app-building workspace — all in one place.</p></div>
-      <button class="primary" id="new-project">＋ New project</button></div>
-      <section class="idea-panel"><label>✳ &nbsp;START WITH AN IDEA</label>
-      <h2>What do you want to build?</h2><p>Describe your app. Studio will help turn your idea into a real project.</p>
-      <form id="idea-form"><textarea id="idea" rows="2" placeholder="A study planner with tasks, focus sessions, and progress analytics..."></textarea>
-      <div class="form-foot"><small>Be as specific or as simple as you like.</small><button class="primary">Create project ↗</button></div></form>
-      <div class="quick"><button id="blank"><b>＋ &nbsp;Start from blank</b><small>Build from a clean canvas</small></button>
-      <button id="import"><b>⌘ &nbsp;Import from GitHub</b><small>Bring an existing codebase</small></button>
-      <button id="templates"><b>▧ &nbsp;Explore templates</b><small>Start with a foundation</small></button></div></section>
-      <div class="section-title"><h2>Your projects <span>${state.drafts.length}</span></h2></div>
-      ${state.drafts.length ? `<div class="project-grid">${cards}</div>` : `<section class="empty">
-      <div class="empty-icon">&lt;/&gt;</div><h3>Your next big idea starts here.</h3>
-      <p>You have not created a project yet. Start with a description, a blank project, or a template.</p>
-      <button class="link-button" id="first-project">Create your first project ↗</button></section>`}
-      <div class="notice"><i></i><span><b>Early foundation build</b> — drafts are currently local to this browser. GitHub sync and live project runtimes are the next milestones.</span></div>`;
-  } else if (state.view === 'templates') {
-    page = `<div class="heading"><div><label>GET A HEAD START</label><h1>Template <em>library.</em></h1><p>Choose a starting point for your next application.</p></div></div>
-      <section class="empty large"><div class="empty-icon">▧</div><h3>Templates are being prepared.</h3>
-      <p>The first templates will be added after runtime and repository workflows are connected. We will not show templates that cannot actually run.</p>
-      <button class="secondary" id="back">Back to projects</button></section>`;
-  } else {
-    page = `<div class="heading"><div><label>PROJECT HISTORY</label><h1>Recent <em>activity.</em></h1><p>Track changes and workspace events across your projects.</p></div></div>
-      <section class="empty large"><div class="empty-icon">◷</div><h3>No activity yet.</h3>
-      <p>Commits, previews, AI tasks, and builds will appear here once those systems are connected.</p>
-      <button class="secondary" id="back">Go to projects</button></section>`;
-  }
-  app.innerHTML = `<div class="shell"><aside class="sidebar">
-    <div class="brand"><span class="mark">S</span><b>studio</b><small>BETA</small></div>
-    <div class="workspace"><span>O</span><div><b>Personal workspace</b><small>Free workspace</small></div></div>
-    <label class="nav-label">WORKSPACE</label>
-    <button class="nav ${state.view==='projects'?'active':''}" data-view="projects">▦ &nbsp; Projects</button>
-    <button class="nav ${state.view==='templates'?'active':''}" data-view="templates">▧ &nbsp; Templates</button>
-    <button class="nav ${state.view==='activity'?'active':''}" data-view="activity">◷ &nbsp; Activity</button>
-    <label class="nav-label build">BUILD</label>
-    <button class="nav" data-message="AI Agent tools will be connected in a later milestone.">✳ &nbsp; AI Agent <small>SOON</small></button>
-    <button class="nav" data-message="Workspace settings will be available when runtimes are connected.">⚙ &nbsp; Settings</button>
-    <div class="side-bottom"><div class="usage">Workspace usage <span>0%</span><div></div><small>No runtime usage yet</small></div>
-    <div class="account"><span>O</span><b>Omar</b></div></div></aside>
-    <main><header><span>Workspace / <b>${state.view}</b></span><div><i></i> All systems ready <span class="avatar">O</span></div></header>
-    <section class="content">${page}</section></main></div>${state.modal?modal():''}<div class="toast" id="toast"></div>`;
-  bind();
-}
-function bind() {
-  document.querySelectorAll('[data-view]').forEach(b => b.onclick = () => { state.view=b.dataset.view; render(); });
-  document.querySelectorAll('[data-message]').forEach(b => b.onclick = () => toast(b.dataset.message));
-  ['new-project','first-project','blank'].forEach(id => {
-    const b=document.getElementById(id); if(b) b.onclick=()=>{state.modal=true;render();};
-  });
-  const templates=document.getElementById('templates');
-  if(templates) templates.onclick=()=>{state.view='templates';render();};
-  const back=document.getElementById('back');
-  if(back) back.onclick=()=>{state.view='projects';render();};
-  const imp=document.getElementById('import');
-  if(imp) imp.onclick=()=>toast('GitHub import is planned after repository authorization is implemented.');
-  const close=document.getElementById('close');
-  if(close) close.onclick=()=>{state.modal=false;render();};
-  const backdrop=document.getElementById('backdrop');
-  if(backdrop) backdrop.onclick=e=>{if(e.target===backdrop){state.modal=false;render();}};
-  const form=document.getElementById('project-form');
-  if(form) form.onsubmit=e=>{
-    e.preventDefault();
-    state.drafts.unshift({name:document.getElementById('name').value.trim(),description:document.getElementById('description').value.trim()});
-    state.modal=false;render();toast('Local draft created. GitHub sync is not connected yet.');
-  };
-  const idea=document.getElementById('idea-form');
-  if(idea) idea.onsubmit=e=>{
-    e.preventDefault(); const value=document.getElementById('idea').value.trim();
-    if(!value){toast('Describe your idea first.');return;}
-    state.drafts.unshift({name:value.split(/[.!?\n]/)[0].slice(0,48)||'Untitled project',description:value});
-    render();toast('Idea saved as a local draft. AI generation is not connected yet.');
-  };
-}
-render();
+const DB_NAME='studio-workspace', DB_VERSION=1, STORE='projects';
+function openDB(){return new Promise((resolve,reject)=>{const req=indexedDB.open(DB_NAME,DB_VERSION);req.onupgradeneeded=()=>{const db=req.result;if(!db.objectStoreNames.contains(STORE))db.createObjectStore(STORE,{keyPath:'id'});};req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error);});}
+async function dbAll(){const db=await openDB();return new Promise((resolve,reject)=>{const req=db.transaction(STORE).objectStore(STORE).getAll();req.onsuccess=()=>resolve(req.result||[]);req.onerror=()=>reject(req.error);});}
+async function dbPut(project){const db=await openDB();return new Promise((resolve,reject)=>{const tx=db.transaction(STORE,'readwrite');tx.objectStore(STORE).put(project);tx.oncomplete=()=>resolve();tx.onerror=()=>reject(tx.error);});}
+async function dbDelete(id){const db=await openDB();return new Promise((resolve,reject)=>{const tx=db.transaction(STORE,'readwrite');tx.objectStore(STORE).delete(id);tx.oncomplete=()=>resolve();tx.onerror=()=>reject(tx.error);});}
+
+function toast(message){const old=$('.toast');if(old)old.remove();const node=document.createElement('div');node.className='toast';node.textContent=message;document.body.append(node);setTimeout(()=>node.remove(),2600);}
+function log(message){$('#consoleOutput').textContent=message;}
+function current(){return state.projects.find(p=>p.id===state.currentId);}
+function saveState(){const p=current();if(!p)return;$('#saveState').textContent='● Saving…';p.updatedAt=new Date().toISOString();clearTimeout(persistTimer);persistTimer=setTimeout(()=>dbPut(p).then(()=>{$('#saveState').textContent='● Saved locally';$('#fileStatus').textContent='Saved';}).catch(e=>{log(`Storage error: ${e.message}`);$('#saveState').textContent='● Save failed';}),300);}
+function switchView(view){$$('.view').forEach(el=>el.classList.toggle('active',el.id===`view-${view}`));$$('.nav-item[data-view]').forEach(el=>el.classList.toggle('active',el.dataset.view===view));$('#breadcrumbCurrent').textContent=({home:'Overview',projects:'Projects',templates:'Templates',editor:current()?.name||'Editor',settings:'Settings'}[view]||view);$('#sidebar').classList.remove('open');if(view==='home')renderRecent();if(view==='projects')renderAllProjects();if(view==='templates')renderTemplates();}
+function renderProjectCard(p){const card=document.createElement('article');card.className='project-card';card.innerHTML=`<div class="project-thumb"><div class="thumb-window"><div class="thumb-line"></div><div class="thumb-line"></div><div class="thumb-line"></div></div></div><div class="project-info"><button class="project-menu" aria-label="Project actions" data-menu="${p.id}">···</button><b></b><div class="project-meta"><span></span><span></span></div></div>`;$('.project-info b',card).textContent=p.name;$('.project-meta span:first-child',card).textContent=p.framework||'HTML / CSS / JS';$('.project-meta span:last-child',card).textContent=new Date(p.updatedAt).toLocaleDateString();$('.project-thumb',card).addEventListener('click',()=>openProject(p.id));$('.project-info b',card).addEventListener('click',()=>openProject(p.id));$('.project-menu',card).addEventListener('click',e=>{e.stopPropagation();projectMenu(p.id);});return card;}
+function renderRecent(){const root=$('#recentProjects');root.replaceChildren();const list=[...state.projects].sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt)).slice(0,3);if(!list.length){root.innerHTML='<div class="empty-state"><b>No projects yet</b>Create your first project to start working with real source files.</div>';return;}list.forEach(p=>root.append(renderProjectCard(p)));}
+function renderAllProjects(){const root=$('#allProjects');root.replaceChildren();const q=($('#projectSearch').value||'').toLowerCase();const list=state.projects.filter(p=>p.name.toLowerCase().includes(q)).sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt));$('#projectCount').textContent=`${list.length} project${list.length===1?'':'s'}`;if(!list.length){root.innerHTML='<div class="empty-state"><b>No matching projects</b>Try another search or create a new project.</div>';return;}list.forEach(p=>root.append(renderProjectCard(p)));}
+function renderTemplates(){const root=$('#templateGrid');root.replaceChildren();templates.forEach(t=>{const card=document.createElement('article');card.className='template-card';card.innerHTML=`<div class="template-art"><div class="mock"><div class="mock-top"></div><div class="mock-block"></div><div class="mock-block"></div></div></div><div class="template-info"><b></b><p></p><button class="secondary-btn">Use template ↗</button></div>`;$('.template-info b',card).textContent=t.name;$('.template-info p',card).textContent=t.description;$('.secondary-btn',card).addEventListener('click',()=>createProject(t.name,t.files));root.append(card);});}
+function projectMenu(id){const p=state.projects.find(x=>x.id===id);if(!p)return;const action=prompt(`Project: ${p.name}\nType: rename, duplicate, delete`);if(action==='rename'){const name=prompt('New project name',p.name);if(name?.trim()){p.name=name.trim();dbPut(p).then(()=>{renderAllProjects();renderRecent();});}}else if(action==='duplicate'){const copy={...clone(p),id:uid(),name:`${p.name} copy`,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};state.projects.push(copy);dbPut(copy).then(()=>{renderAllProjects();renderRecent();toast('Project duplicated');});}else if(action==='delete'&&confirm(`Delete ${p.name}? This cannot be undone.`)){state.projects=state.projects.filter(x=>x.id!==id);dbDelete(id).then(()=>{renderAllProjects();renderRecent();toast('Project deleted');});}}
+function defaultFiles(){return {'index.html':'<!doctype html>\n<html lang="en">\n<head>\n  <meta charset="utf-8">\n  <meta name="viewport" content="width=device-width, initial-scale=1">\n  <title>My first app</title>\n</head>\n<body>\n  <main class="card">\n    <span class="eyebrow">YOUR NEW PROJECT</span>\n    <h1>Hello, Studio.</h1>\n    <p>Edit this source and watch your preview update.</p>\n    <button id="helloButton">Click to interact</button>\n    <p id="message" aria-live="polite"></p>\n  </main>\n</body>\n</html>','style.css':'* { box-sizing: border-box; }\nbody { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #f2f0eb; color: #202923; font-family: Arial, sans-serif; }\n.card { width: min(520px, calc(100% - 40px)); padding: 48px; border: 1px solid #d8ddd4; border-radius: 18px; background: white; box-shadow: 0 25px 70px #27352b12; }\n.eyebrow { color: #798a7d; font-size: 10px; letter-spacing: 2px; }\nh1 { font-size: clamp(34px, 8vw, 54px); letter-spacing: -2px; margin: 18px 0 10px; }\np { color: #718078; line-height: 1.7; }\nbutton { border: 0; border-radius: 8px; padding: 13px 17px; color: white; background: #334f40; cursor: pointer; }','app.js':'document.querySelector("#helloButton")?.addEventListener("click", () => {\n  document.querySelector("#message").textContent = "Your JavaScript is running in the live preview.";\n});'}};
+async function createProject(name='Untitled project',files=defaultFiles()){const p={id:uid(),name,framework:'HTML / CSS / JS',files:clone(files),createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};state.projects.push(p);await dbPut(p);openProject(p.id);toast('Project created and saved locally');}
+function openProject(id){state.currentId=id;state.activeFile=Object.keys(current().files)[0]||'index.html';state.selected=null;state.history=[];state.historyIndex=-1;$('#editorProjectName').textContent=current().name;renderFileTree();loadEditor();switchView('editor');refreshPreview();}
+function renderFileTree(){const p=current(),root=$('#fileTree');root.replaceChildren();if(!p)return;Object.keys(p.files).sort((a,b)=>a.localeCompare(b)).forEach(path=>{const row=document.createElement('div');row.className='file-row'+(path===state.activeFile?' active':'');row.innerHTML=`<span>${path.endsWith('.css')?'◈':path.endsWith('.js')?'⌘':'◇'}</span><span></span>`;row.children[1].textContent=path;row.title=path;row.addEventListener('click',()=>{captureEditor();state.activeFile=path;renderFileTree();loadEditor();});root.append(row);});}
+function loadEditor(){const p=current();if(!p)return;$('#activeFileLabel').textContent=state.activeFile;$('#languageLabel').textContent=state.activeFile.split('.').pop().toUpperCase();$('#codeEditor').value=p.files[state.activeFile]??'';$('#fileStatus').textContent='Saved';$('#cursorStatus').textContent='Ln 1, Col 1';}
+function captureEditor(){const p=current();if(!p)return;const editor=$('#codeEditor');if(p.files[state.activeFile]!==editor.value){p.files[state.activeFile]=editor.value;saveState();}}
+function snapshot(){const p=current();if(!p)return;const snap=JSON.stringify(p.files);if(state.history[state.historyIndex]===snap)return;state.history=state.history.slice(0,state.historyIndex+1);state.history.push(snap);if(state.history.length>40)state.history.shift();state.historyIndex=state.history.length-1;}
+function restoreHistory(direction){captureEditor();const next=state.historyIndex+direction;if(next<0||next>=state.history.length)return;state.historyIndex=next;current().files=JSON.parse(state.history[next]);renderFileTree();loadEditor();refreshPreview();saveState();}
+function previewDocument(){const p=current();if(!p)return '';let html=p.files['index.html']||'<main><h1>No index.html found</h1></main>';html=html.replace(/<script[^>]+src=[\"'](?:\.\/)?app\.js[\"'][^>]*><\/script>/gi,'');const css=p.files['style.css']||'';const js=p.files['app.js']||'';const injected=`<style>${css.replace(/<\/style/gi,'<\\/style')}</style>`;if(/<\/head>/i.test(html))html=html.replace(/<\/head>/i,`${injected}</head>`);else html=injected+html;const inspector=`<script>(function(){let enabled=false;let last=null;const send=(type,data)=>parent.postMessage({__studio:true,type,data},'*');document.addEventListener('click',e=>{if(!enabled)return;const el=e.target.closest('*');if(!el||el===document.documentElement||el===document.body)return;e.preventDefault();e.stopPropagation();if(last)last.style.outline='';last=el;el.style.outline='2px solid #856dff';const cs=getComputedStyle(el);const path=el.tagName.toLowerCase()+(el.id?'#'+el.id:'')+(el.classList.length?'.'+[...el.classList].slice(0,2).join('.').replace(/\s/g,'.'):'');send('selected',{tag:el.tagName.toLowerCase(),id:el.id||'',classes:[...el.classList],text:(el.innerText||'').slice(0,500),path,background:cs.backgroundColor,color:cs.color,fontSize:cs.fontSize,padding:cs.padding,borderRadius:cs.borderRadius,selector:el.id?'#'+CSS.escape(el.id):el.classList.length?'.'+CSS.escape(el.classList[0]):el.tagName.toLowerCase()});},true);addEventListener('message',e=>{if(e.data?.__studioCommand==='inspect'){enabled=!!e.data.enabled;document.body.style.cursor=enabled?'crosshair':'';send('inspect-state',{enabled});}});send('ready',{});})();<\/script>`;html=html.replace(/<\/body>/i,`${inspector}<script>${js.replace(/<\/script/gi,'<\\/script')}</script></body>`);if(!/<\/body>/i.test(html))html+=inspector+`<script>${js}</script>`;return html;}
+function refreshPreview(){captureEditor();const frame=$('#livePreview');if(!frame||!current())return;frame.srcdoc=previewDocument();$('#previewMessage').textContent='Preview refreshed from project source';log(`Preview refreshed: ${current().name} · ${Object.keys(current().files).length} source files`);}
+function toggleInspect(){state.inspect=!state.inspect;$('#inspectState').textContent=state.inspect?'ACTIVE':'IDLE';$('#livePreview').contentWindow?.postMessage({__studioCommand:'inspect',enabled:state.inspect},'*');toast(state.inspect?'Element selection enabled':'Element selection disabled');}
+function showInspector(data){state.selected=data;$('#inspectState').textContent='SELECTED';const root=$('#inspectorContent');root.innerHTML='';const title=document.createElement('div');title.className='inspector-section';title.textContent=`${data.tag.toUpperCase()} ELEMENT`;root.append(title);const field=(label,value,kind='text')=>{const wrap=document.createElement('div');wrap.className='inspect-field';const l=document.createElement('label');l.textContent=label;const input=document.createElement('input');input.value=value||'';input.type=kind;wrap.append(l,input);root.append(wrap);return input;};const textInput=field('Text content',data.text);const selectorInput=field('CSS selector',data.selector);const section=document.createElement('div');section.className='inspector-section';section.textContent='APPEARANCE';root.append(section);const bg=field('Background color',data.background,'text');const color=field('Text color',data.color,'text');const size=field('Font size',data.fontSize);const padding=field('Padding',data.padding);const radius=field('Border radius',data.borderRadius);const apply=document.createElement('button');apply.className='primary-btn';apply.textContent='Apply changes to source';apply.style.width='100%';apply.style.marginTop='10px';apply.addEventListener('click',()=>applyInspectorChanges({selector:selectorInput.value,text:textInput.value,background:bg.value,color:color.value,fontSize:size.value,padding:padding.value,borderRadius:radius.value}));root.append(apply);const hint=document.createElement('p');hint.style.cssText='font-size:9px;line-height:1.5;color:#8c95a6';hint.textContent='Studio writes a selector-based CSS rule to style.css. Text changes are applied to the matching HTML element.';root.append(hint);}
+function applyInspectorChanges(values){const p=current();if(!p||!state.selected)return;const html=p.files['index.html']||'';const selector=values.selector.trim();if(!selector){toast('A CSS selector is required');return;}try{const doc=new DOMParser().parseFromString(html,'text/html');const el=doc.querySelector(selector);if(!el){toast('Could not find that selector in index.html');return;}if(values.text!==el.textContent.trim())el.textContent=values.text;const htmlOut='<!doctype html>\n'+doc.documentElement.outerHTML;p.files['index.html']=htmlOut;const cssRule=`\n\n/* Studio inspector edit — ${new Date().toISOString()} */\n${selector} {\n  background: ${values.background};\n  color: ${values.color};\n  font-size: ${values.fontSize};\n  padding: ${values.padding};\n  border-radius: ${values.borderRadius};\n}\n`;p.files['style.css']=(p.files['style.css']||'')+cssRule;state.activeFile='style.css';renderFileTree();loadEditor();saveState();refreshPreview();toast('Source updated from inspector');}catch(e){toast(`Inspector error: ${e.message}`);}}
+function showModal(title,html,onSubmit){$('#modalTitle').textContent=title;$('#modalBody').innerHTML=html;$('#modalBackdrop').hidden=false;const form=$('#modalBody form');if(form)form.addEventListener('submit',e=>{e.preventDefault();onSubmit(new FormData(form));});}
+function closeModal(){$('#modalBackdrop').hidden=true;}
+function createProjectDialog(){showModal('Create a project',`<form class="modal-form"><label>Project name</label><input name="name" required maxlength="60" placeholder="My next idea" value="Untitled project"><label>Starting point</label><select name="template"><option value="blank">Blank project</option>${templates.map(t=>`<option value="${t.id}">${t.name}</option>`).join('')}</select><button class="primary-btn" type="submit">Create project →</button></form>`,data=>{const t=templates.find(x=>x.id===data.get('template'));closeModal();createProject(data.get('name').trim(),t?t.files:defaultFiles());});}
+function newFile(){const path=prompt('New file path (example: about.html or styles/theme.css)');if(!path?.trim())return;const clean=path.trim().replace(/^\/+|\.\./g,'');if(!clean||current().files[clean]!==undefined){toast('Invalid or existing file path');return;}current().files[clean]='';state.activeFile=clean;renderFileTree();loadEditor();saveState();}
+function exportProject(p=current()){if(!p)return;const blob=new Blob([JSON.stringify({format:'studio-project',version:1,project:p},null,2)],{type:'application/json'});download(blob,`${safeName(p.name)}.studio.json`);}
+function exportAll(){const blob=new Blob([JSON.stringify({format:'studio-workspace',version:1,projects:state.projects},null,2)],{type:'application/json'});download(blob,'studio-workspace-backup.json');}
+function download(blob,name){const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
+function safeName(name){return name.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g)||'studio-project';}
+function importProjectFile(file){const reader=new FileReader();reader.onload=async()=>{try{const data=JSON.parse(reader.result);let projects=[];if(data.format==='studio-project'&&data.project)projects=[data.project];else if(data.format==='studio-workspace'&&Array.isArray(data.projects))projects=data.projects;else throw new Error('Unsupported file. Choose a Studio .studio.json export.');for(const p of projects){if(!p.name||!p.files||typeof p.files!=='object')throw new Error('Project structure is invalid.');const clean={...p,id:uid(),updatedAt:new Date().toISOString(),createdAt:new Date().toISOString()};state.projects.push(clean);await dbPut(clean);}renderRecent();renderAllProjects();toast(`${projects.length} project(s) imported`);}catch(e){toast(`Import failed: ${e.message}`);}};reader.readAsText(file);}
+function configureAI(){const provider=$('#aiProvider').value,endpoint=$('#aiEndpoint').value.trim(),model=$('#aiModel').value.trim(),key=$('#aiKey').value.trim();if(!endpoint||!model||!key){toast('Enter an endpoint, model, and API key');return;}state.ai={provider,endpoint,model,key};$('#aiKey').value='';toast('Provider configured for this tab session');}
+function clearAI(){state.ai=null;$('#aiKey').value='';toast('AI credentials cleared from memory');}
+function openAI(){if(!state.ai){switchView('settings');toast('Configure an AI provider first');return;}showModal('AI engineering assistant',`<form class="modal-form"><label>What should Studio change?</label><textarea name="task" required rows="5" style="width:100%;background:#171c26;color:var(--text);border:1px solid var(--line);border-radius:8px;padding:10px" placeholder="Example: Make the hero section more minimal and use a warm neutral palette."></textarea><p style="font-size:10px;color:#9aa2b1;line-height:1.5">The model receives the current project files and is asked to return a structured file patch. Review and apply the patch before changing your project.</p><button class="primary-btn" type="submit">Generate proposed changes →</button></form>`,async data=>{const task=data.get('task');closeModal();await runAI(task);});}
+async function runAI(task){const p=current();if(!p||!state.ai)return;log('Sending selected project context to configured AI provider…');try{const files=Object.entries(p.files).map(([path,content])=>({path,content}));const system=`You are an expert software engineer working inside Studio. Return ONLY valid JSON with this exact shape: {"summary":"short explanation","changes":[{"path":"existing-or-new-file-path","content":"complete new file content"}]}. Do not use markdown fences. Only modify files necessary for the user's request. Do not delete files. Keep the project runnable. The user's request: ${task}`;const user=`Project: ${p.name}\nFiles:\n${files.map(f=>`--- ${f.path} ---\n${f.content}`).join('\n\n')}`;let response;if(state.ai.provider==='anthropic'){response=await fetch(state.ai.endpoint.replace(/\/$/, '')+'/v1/messages',{method:'POST',headers:{'content-type':'application/json','x-api-key':state.ai.key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:state.ai.model,max_tokens:6000,system,messages:[{role:'user',content:user}]})});}else{const base=state.ai.endpoint.replace(/\/$/,'');response=await fetch(base.endsWith('/chat/completions')?base:base+'/chat/completions',{method:'POST',headers:{'content-type':'application/json',authorization:`Bearer ${state.ai.key}`},body:JSON.stringify({model:state.ai.model,temperature:0.2,messages:[{role:'system',content:system},{role:'user',content:user}]})});}if(!response.ok)throw new Error(`Provider returned HTTP ${response.status}: ${(await response.text()).slice(0,300)}`);const result=await response.json();let content=state.ai.provider==='anthropic'?result.content?.map(x=>x.text||'').join('\n'):result.choices?.[0]?.message?.content;if(!content)throw new Error('Provider returned no text content');content=content.replace(/^```(?:json)?\s*/,'').replace(/\s*```$/,'').trim();const patch=JSON.parse(content);if(!Array.isArray(patch.changes))throw new Error('AI response did not contain a changes array');const approved=confirm(`${patch.summary||'AI proposed source changes'}\n\n${patch.changes.length} file(s) will be changed. Apply these changes?`);if(!approved){log('AI patch rejected. No project files were changed.');return;}for(const change of patch.changes){if(typeof change.path!=='string'||typeof change.content!=='string'||change.path.startsWith('/')||change.path.split('/').includes('..'))throw new Error('AI returned an unsafe file path');p.files[change.path]=change.content;}state.activeFile=patch.changes[0]?.path||state.activeFile;renderFileTree();loadEditor();saveState();refreshPreview();log(`AI changes applied: ${patch.summary||patch.changes.length+' files updated'}`);toast('AI patch applied to project source');}catch(e){log(`AI request failed: ${e.message}`);toast(`AI error: ${e.message}`);}}
+function addFileAction(){newFile();}
+function handleAction(action){switch(action){case'new-project':createProjectDialog();break;case'import-project':$('#importInput').click();break;case'export-project':exportProject();break;case'export-all':exportAll();break;case'back-home':switchView('home');break;case'refresh-preview':refreshPreview();break;case'inspect-toggle':toggleInspect();break;case'save-file':captureEditor();snapshot();refreshPreview();toast('File saved');break;case'new-file':addFileAction();break;case'open-ai':openAI();break;case'close-modal':closeModal();break;case'clear-console':log('Console cleared');break;case'save-ai':configureAI();break;case'clear-ai':clearAI();break;case'clear-workspace':if(confirm('Delete every locally saved Studio project? This cannot be undone.')){state.projects=[];dbAll().then(all=>Promise.all(all.map(p=>dbDelete(p.id)))).then(()=>{renderRecent();renderAllProjects();toast('Local workspace cleared');});}break;}}
+
+document.addEventListener('click',e=>{const view=e.target.closest('[data-view]');if(view){switchView(view.dataset.view);return;}const action=e.target.closest('[data-action]');if(action){handleAction(action.dataset.action);return;}});
+$('#mobileMenu').addEventListener('click',()=>$('#sidebar').classList.toggle('open'));
+$('#projectSearch').addEventListener('input',renderAllProjects);
+$('#importInput').addEventListener('change',e=>{const file=e.target.files?.[0];if(file)importProjectFile(file);e.target.value='';});
+$('#codeEditor').addEventListener('input',()=>{captureEditor();$('#fileStatus').textContent='Modified';});
+$('#codeEditor').addEventListener('keydown',e=>{if(e.key==='Tab'){e.preventDefault();const el=e.currentTarget,start=el.selectionStart,end=el.selectionEnd;el.setRangeText('  ',start,end,'end');captureEditor();}});
+$('#codeEditor').addEventListener('keyup',e=>{const text=e.currentTarget.value.slice(0,e.currentTarget.selectionStart);const lines=text.split('\n');$('#cursorStatus').textContent=`Ln ${lines.length}, Col ${lines.at(-1).length+1}`;});
+$('#themeToggle').addEventListener('click',()=>{state.theme=state.theme==='dark'?'light':'dark';document.body.classList.toggle('light',state.theme==='light');});
+window.addEventListener('message',e=>{if(e.source!==$('#livePreview')?.contentWindow||!e.data?.__studio)return;if(e.data.type==='selected')showInspector(e.data.data);if(e.data.type==='ready'&&state.inspect)$('#livePreview').contentWindow.postMessage({__studioCommand:'inspect',enabled:true},'*');});
+window.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='s'){e.preventDefault();captureEditor();refreshPreview();}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){e.preventDefault();restoreHistory(e.shiftKey?1:-1);}});
+
+async function boot(){try{state.projects=await dbAll();}catch(e){toast('IndexedDB unavailable. Projects may not persist in this browser.');}renderRecent();renderTemplates();switchView('home');if(location.hash==='#editor'&&state.projects.length)openProject(state.projects[0].id);}
+boot();

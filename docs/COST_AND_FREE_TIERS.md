@@ -1,16 +1,9 @@
-# Cost and free-tier policy
-- No mandatory paid subscription/API/hosting/preview service.
-- No automatic paid fallback, upgrade, or overage.
-- Pause a feature or offer a verified free alternative when quota is exhausted.
-- Never claim free tiers are unlimited or permanent.
-- Unknown quota means unavailable until verified.
-- Consumer chat access does not imply free API access.
-- Never store tokens in client-side source or request secrets in chat.
+# Cost and Free-Tier Policy
 
-Runtime candidates:
-- StackBlitz WebContainers: Android smoke test succeeded for a small Vite project. Embedded API terms, cross-origin isolation, mobile memory, and project-size limits remain unverified.
-- GitHub Codespaces: metered monthly compute/storage; verify current quota and budget before use.
-- Vercel Sandbox: secondary candidate after account authorization and current quota verification.
-- Static hosting is not a persistent dev-server runtime.
+Studio does not bundle paid AI credits or start paid infrastructure. The local workspace, project editing, preview, and JSON backup do not require an AI subscription.
 
-Unlimited always-on cloud development and unlimited AI inference cannot be promised at zero cost. Design around quotas, sleeping workspaces, hard limits, and graceful pauses.
+Optional AI requests use a provider and model selected by the user. Provider charges, rate limits, availability, and free quotas are controlled by that provider and may change. Studio must not silently switch providers or trigger paid fallback. When a quota is exhausted or a provider rejects a request, stop and explain the failure.
+
+The browser-side provider adapter in this MVP is experimental. It is not a secure production secrets-management solution. A hosted Studio must proxy provider requests through an authenticated backend, enforce user-configured budgets, and keep provider keys server-side.
+
+Runtime costs are not applicable to the current local HTML/CSS/JS preview. A future Node-based or remote runtime must be selected only after documenting pricing, free-tier limits, sleep behavior, storage limits, and Android compatibility. No unlimited-free runtime is promised.

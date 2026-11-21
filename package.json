@@ -1,14 +1,12 @@
 {
-  "name": "studio",
+  "name": "studio-local-mvp",
+  "version": "0.2.0",
   "private": true,
-  "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "vite --host 0.0.0.0",
-    "build": "vite build",
-    "preview": "vite preview --host 0.0.0.0"
-  },
-  "devDependencies": {
-    "vite": "^7.1.0"
+    "dev": "node server.js",
+    "build": "node scripts/build.mjs",
+    "preview": "node server.js dist",
+    "test": "node --test"
   }
 }
