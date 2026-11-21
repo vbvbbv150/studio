@@ -1,0 +1,11 @@
+# Decision log
+- D-001: Studio has a separate repository and roadmap.
+- D-002: Each generated application has its own repository and isolated runtime.
+- D-003: Preview runs actual source; screenshots are not live Preview.
+- D-004: Runtime feasibility must be proven before claiming runtime readiness.
+- D-005: Direct visual editing applies to components with stable identity and declared editable properties.
+- D-006: Agent tools/context/state are provider-independent.
+- D-007: No mandatory paid dependencies, automatic billing, or paid fallback.
+- D-008: APK generation applies only to compatible Android templates.
+- D-009: Production changes, destructive actions, sensitive settings, and default-branch merges require approval.
+- D-010: User should receive complete files or versioned bundles, not manual code fragments.
