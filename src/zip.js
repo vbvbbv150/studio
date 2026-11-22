@@ -1,13 +1,3 @@
-const badPath = (path) => typeof path !== 'string' || !path || path.startsWith('/') || path.includes('\\') || /^[A-Za-z]:/.test(path) || path.split('/').some((part) => part === '..' || part === '.');
-const skipPath = (path) => /(^|\/)(node_modules|\.git|dist|build|\.cache|coverage)(\/|$)/.test(path) || /(^|\/)(\.env(\.(?!example$).*)?|id_rsa|.*\.(pem|key)|credentials\.json)$/i.test(path);
-const enc = new TextEncoder();
-const dec = new TextDecoder();
-const u16 = (view, at, n) => view.setUint16(at, n, true);
-const u32 = (view, at, n) => view.setUint32(at, n >>> 0, true);
-const r16 = (view, at) => view.getUint16(at, true);
-const r32 = (view, at) => view.getUint32(at, true);
-function crc32(bytes) { let crc = -1; for (const byte of bytes) { crc ^= byte; for (let i = 0; i < 8; i++) crc = (crc >>> 1) ^ (0xedb88320 & -(crc & 1)); } return (crc ^ -1) >>> 0; }
-
 export function createZip(files, { clean = false } = {}) {
   const entries = files instanceof Map ? [...files] : Object.entries(files || {});
   const local = [], central = []; let pos = 0;
@@ -57,9 +47,12 @@ export async function inspectZip(input, { maxFiles = 10000, maxUncompressedBytes
   }
   const names = [...raw.keys()]; const roots = new Set(names.map((path) => path.split('/')[0]));
   const root = names.every((path) => path.includes('/')) && roots.size === 1 ? `${names[0].split('/')[0]}/` : '';
-  const files = new Map([...raw].filter(([path]) => !root || path.startsWith(root)).map(([path, data]) => [root ? path.slice(root.length) : path, dec.decode(data)]));
+  const files = new Map([...raw].filter(([path]) => !root || path.startsWith(root)).map(([path, data]) => {
+    let value; try { value = new TextDecoder('utf-8', { fatal: true }).decode(data); } catch { value = data; }
+    return [root ? path.slice(root.length) : path, value];
+  }));
   const paths = [...files.keys()]; const manifestPath = paths.find((path) => path === 'package.json' || path.endsWith('/package.json')); let manifest;
-  if (manifestPath) { try { manifest = JSON.parse(files.get(manifestPath)); } catch { manifest = null; } }
+  if (manifestPath && typeof files.get(manifestPath) === 'string') { try { manifest = JSON.parse(files.get(manifestPath)); } catch { manifest = null; } }
   const config = paths.find((path) => /(^|\/)(vite\.config\.|next\.config\.|capacitor\.config\.|astro\.config\.)/.test(path));
   const framework = config?.includes('vite') ? (manifest?.dependencies?.react ? 'React + Vite' : 'Vite') : config?.includes('next') ? 'Next.js' : config?.includes('capacitor') ? 'Capacitor' : manifest?.dependencies?.react ? 'React' : manifest ? 'Node.js project' : paths.some((path) => /(^|\/)index\.html$/.test(path)) ? 'Static HTML/CSS/JavaScript' : 'Unknown';
   const packageManager = paths.some((path) => path.endsWith('pnpm-lock.yaml')) ? 'pnpm' : paths.some((path) => path.endsWith('yarn.lock')) ? 'yarn' : paths.some((path) => path.endsWith('package-lock.json')) ? 'npm' : manifest ? 'Not identified' : 'Not applicable';
