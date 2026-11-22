@@ -1,0 +1,3 @@
+<section class="workspace-tools"><button data-action="import-zip">⇧ Import ZIP</button><button data-action="import-github">GitHub import</button><button data-action="download-source">⇩ Download source ZIP</button><button data-action="visual-toggle">⌖ Visual select</button></section>
+<section id="source-review" class="review-panel" hidden></section>
+<section id="project-import-report" class="import-report" hidden></section>
