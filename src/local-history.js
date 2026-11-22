@@ -7,19 +7,14 @@ export function computeChanges(base, working) {
     return [{ path, kind: before === null ? 'added' : after === null ? 'deleted' : 'modified', before, after }];
   });
 }
-
 export class StudioHistory {
-  constructor({ limit = 40 } = {}) { this.limit = limit; this.snapshots = []; }
+  constructor({ limit = 40, snapshots = [] } = {}) { this.limit = limit; this.snapshots = structuredClone(snapshots); }
   checkpoint(label, files, meta = {}) {
     const snapshot = { id: `snapshot-${Date.now()}-${this.snapshots.length}`, label, createdAt: new Date().toISOString(), files: structuredClone(files), meta: structuredClone(meta) };
-    this.snapshots.push(snapshot);
-    if (this.snapshots.length > this.limit) this.snapshots.shift();
-    return snapshot;
+    this.snapshots.push(snapshot); if (this.snapshots.length > this.limit) this.snapshots.shift(); return snapshot;
   }
   list() { return this.snapshots.map(({ id, label, createdAt, meta }) => ({ id, label, createdAt, meta })); }
   restore(id) { const snapshot = this.snapshots.find((entry) => entry.id === id); if (!snapshot) throw new Error('Studio snapshot was not found.'); return structuredClone(snapshot.files); }
+  serialize() { return structuredClone(this.snapshots); }
 }
-
-export function createStudioDiff(changes) {
-  return changes.map(({ path, kind, before, after }) => ({ path, kind, before: before ?? '', after: after ?? '' }));
-}
+export function createStudioDiff(changes) { return changes.map(({ path, kind, before, after }) => ({ path, kind, before: before ?? '', after: after ?? '' })); }
